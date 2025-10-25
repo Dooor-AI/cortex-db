@@ -1,0 +1,66 @@
+name: jurisprudencia
+description: "Processos judiciais trabalhistas"
+
+fields:
+  - name: numero_processo
+    type: string
+    required: true
+    indexed: true
+    unique: true
+    store_in: [postgres, qdrant_payload]
+
+  - name: tribunal
+    type: string
+    required: true
+    indexed: true
+    filterable: true
+    store_in: [postgres, qdrant_payload]
+
+  - name: ementa
+    type: text
+    required: true
+    vectorize: true
+    store_in: [postgres, qdrant]
+
+  - name: decisao
+    type: text
+    vectorize: true
+    store_in: [postgres, qdrant]
+
+  - name: valor_causa
+    type: float
+    filterable: true
+    store_in: [postgres, qdrant_payload]
+
+  - name: data_julgamento
+    type: date
+    indexed: true
+    store_in: [postgres]
+
+  - name: pdf_peticao
+    type: file
+    vectorize: true
+    store_in: [minio, qdrant]
+    extract_config:
+      extract_text: true
+      ocr_if_needed: true
+      chunk_size: 1000
+      chunk_overlap: 200
+
+  - name: partes
+    type: array
+    store_in: [postgres]
+    schema:
+      - name: nome
+        type: string
+        required: true
+      - name: tipo
+        type: enum
+        values: [reclamante, reclamado, advogado]
+      - name: cpf_cnpj
+        type: string
+
+config:
+  embedding_model: models/text-embedding-004
+  chunk_size: 1000
+  chunk_overlap: 200

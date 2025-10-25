@@ -1,0 +1,30 @@
+name: faqs
+description: "Perguntas frequentes com busca semântica"
+
+fields:
+  - name: question
+    type: text
+    required: true
+    vectorize: true
+    store_in: [postgres, qdrant]
+
+  - name: answer
+    type: text
+    required: true
+    vectorize: true
+    store_in: [postgres, qdrant]
+
+  - name: category
+    type: string
+    required: true
+    indexed: true
+    filterable: true
+    store_in: [postgres, qdrant_payload]
+
+  - name: views
+    type: int
+    default: 0
+    store_in: [postgres]
+
+config:
+  embedding_model: models/text-embedding-004

@@ -1,0 +1,47 @@
+name: products
+description: "Produtos de e-commerce com busca semântica"
+
+fields:
+  - name: sku
+    type: string
+    required: true
+    unique: true
+    indexed: true
+    store_in: [postgres]
+
+  - name: name
+    type: string
+    required: true
+    indexed: true
+    store_in: [postgres]
+
+  - name: description
+    type: text
+    required: true
+    vectorize: true
+    store_in: [postgres, qdrant]
+
+  - name: price
+    type: float
+    required: true
+    filterable: true
+    store_in: [postgres, qdrant_payload]
+
+  - name: category
+    type: string
+    indexed: true
+    filterable: true
+    store_in: [postgres, qdrant_payload]
+
+  - name: image
+    type: file
+    store_in: [minio]
+
+  - name: in_stock
+    type: boolean
+    default: true
+    filterable: true
+    store_in: [postgres, qdrant_payload]
+
+config:
+  embedding_model: models/text-embedding-004

@@ -59,27 +59,15 @@ _DEFAULT_PROVIDER_KEY = "__default__"
 
 
 async def get_embedding_service(provider_id: Optional[str] = None) -> GeminiEmbeddingService:
-    cache_key = provider_id or _DEFAULT_PROVIDER_KEY
-    if cache_key in _embedding_services:
-        return _embedding_services[cache_key]
+    if not provider_id:
+        raise ValueError("Embedding provider ID is required. Please configure a provider in settings.")
 
-    if provider_id:
-        service = await _build_service_from_provider(provider_id)
-    else:
-        service = _build_default_service()
+    if provider_id in _embedding_services:
+        return _embedding_services[provider_id]
 
-    _embedding_services[cache_key] = service
+    service = await _build_service_from_provider(provider_id)
+    _embedding_services[provider_id] = service
     return service
-
-
-def _build_default_service() -> GeminiEmbeddingService:
-    settings = get_settings()
-    if not settings.gemini_api_key:
-        raise RuntimeError("GEMINI_API_KEY is not configured")
-    return GeminiEmbeddingService(
-        api_key=settings.gemini_api_key,
-        model=settings.gemini_embedding_model,
-    )
 
 
 async def _build_service_from_provider(provider_id: str) -> GeminiEmbeddingService:

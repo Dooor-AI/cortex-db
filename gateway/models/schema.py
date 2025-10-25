@@ -118,6 +118,7 @@ class CollectionSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str
+    database: Optional[str] = None
     description: Optional[str] = None
     fields: List[FieldDefinition]
     config: CollectionConfig = Field(default_factory=CollectionConfig)

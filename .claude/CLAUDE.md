@@ -20,6 +20,13 @@
 - MinIO para arquivos
 - Gemini para embeddings
 
+### ⚠️ IMPORTANTE: Serialização JSON/Dict
+- **SEMPRE** verificar questões de dict vs JSON string em operações com Postgres JSONB
+- Ao inserir: usar `json.dumps()` + `::jsonb` cast no SQL
+- Ao ler: verificar se precisa `json.loads()` quando retorna string ao invés de dict
+- Padrão comum: metadata, schema, e outros campos JSONB podem precisar parse
+- PostgresClient usa `self.dsn` (NÃO `self._dsn`) - sempre verificar atributos corretos da classe
+
 ## Banco de Dados
 - **NÃO** usa Prisma (isso é um projeto Python, não Node.js no backend)
 - Tabelas são gerenciadas via SQL direto no código Python
@@ -37,3 +44,6 @@
 
 ## Comandos CLI
 - Para comandos bash/sh com timeout disponível: sempre usar timeouts longos (10 min+)
+
+
+NUNCA RODE BUILDS OU RUN (A MENOS QUE PEDIDO PELO USUÁRIO)

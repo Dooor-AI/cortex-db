@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { fetchCollections } from "@/lib/cortex-client";
+import { fetchDatabases, fetchCollections } from "@/lib/cortex-client";
 import { formatDate } from "@/lib/format";
 import { SchemaField } from "@/lib/types";
 
@@ -29,8 +29,10 @@ function buildSeries(values: number[]): { path: string; markers: { x: number; y:
 }
 
 export default async function Home() {
+  const databases = await fetchDatabases();
   const collections = await fetchCollections();
 
+  const totalDatabases = databases.length;
   const totalCollections = collections.length;
   const totalFields = collections.reduce(
     (acc, item) => acc + ((item.schema?.fields?.length as number | undefined) ?? 0),
@@ -69,7 +71,7 @@ export default async function Home() {
           </CardHeader>
           <CardContent className="grid gap-6">
             <div className="grid grid-cols-3 gap-6">
-              {[{ label: "Collections", value: totalCollections }, { label: "Fields", value: totalFields }, {
+              {[{ label: "Databases", value: totalDatabases }, { label: "Collections", value: totalCollections }, {
                 label: "Vector Fields",
                 value: vectorFields,
               }].map((item) => (
@@ -163,13 +165,13 @@ export default async function Home() {
 
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="terminal-heading text-muted-foreground">Collection Manifest</h2>
+          <h2 className="terminal-heading text-muted-foreground">Database Registry</h2>
           <div className="flex items-center gap-2">
             <Button asChild variant="secondary" size="sm">
-              <Link href="/collections/new">New Collection</Link>
+              <Link href="/databases/new">New Database</Link>
             </Button>
             <Button asChild variant="outline" size="sm">
-              <Link href="/collections">Open Registry</Link>
+              <Link href="/databases">Open Registry</Link>
             </Button>
             <Button asChild variant="ghost" size="sm">
               <Link href="/settings/embeddings">Embedding Settings</Link>
@@ -177,12 +179,12 @@ export default async function Home() {
           </div>
         </div>
 
-        {collections.length === 0 ? (
+        {databases.length === 0 ? (
           <Card>
             <CardHeader>
-              <CardTitle>No collections detected</CardTitle>
+              <CardTitle>No databases detected</CardTitle>
               <CardDescription>
-                Create a schema via the CortexDB API to see it appear here. Check <code>schemas/</code> for examples.
+                Create your first database to start organizing collections and storing data.
               </CardDescription>
             </CardHeader>
           </Card>
@@ -193,24 +195,22 @@ export default async function Home() {
                 <table className="w-full text-left">
                   <thead className="bg-secondary/40 text-[0.6rem] uppercase tracking-[0.25em] text-muted-foreground">
                     <tr className="border-b border-border/60">
-                      <th className="px-4 py-3">Collection</th>
-                      <th className="px-4 py-3">Fields</th>
-                      <th className="px-4 py-3">Vector</th>
+                      <th className="px-4 py-3">Database</th>
+                      <th className="px-4 py-3">Description</th>
+                      <th className="px-4 py-3">Created</th>
                       <th className="px-4 py-3">Updated</th>
                     </tr>
                   </thead>
                   <tbody className="text-[0.8rem]">
-                    {collections.slice(0, 8).map((collection) => {
-              const fields = ((collection.schema?.fields as SchemaField[] | undefined) ?? []);
-              const vectorized = fields.filter((field) => field.vectorize).length;
+                    {databases.slice(0, 8).map((database) => {
                       return (
-                        <tr key={collection.name} className="border-b border-border/40 transition-colors hover:bg-muted/20">
+                        <tr key={database.id} className="border-b border-border/40 transition-colors hover:bg-muted/20">
                           <td className="px-4 py-3 font-mono text-xs text-primary">
-                            <Link href={`/collections/${collection.name}`}>{collection.name}</Link>
+                            <Link href={`/databases/${database.name}/collections`}>{database.name}</Link>
                           </td>
-                          <td className="px-4 py-3 text-muted-foreground">{fields.length}</td>
-                          <td className="px-4 py-3 text-muted-foreground">{vectorized}</td>
-                          <td className="px-4 py-3 text-muted-foreground">{formatDate(collection.updated_at)}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{database.description || "—"}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{formatDate(database.created_at)}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{formatDate(database.updated_at)}</td>
                         </tr>
                       );
                     })}

@@ -28,12 +28,13 @@ export interface RecordRow {
 
 interface RecordsTableProps {
   collection: string;
+  database?: string;
   fields: FieldSummary[];
   records: RecordRow[];
   searchMode?: boolean;
 }
 
-export function RecordsTable({ collection, fields, records, searchMode }: RecordsTableProps) {
+export function RecordsTable({ collection, database, fields, records, searchMode }: RecordsTableProps) {
   const columns = fields.slice(0, 4);
 
   return (
@@ -84,7 +85,13 @@ export function RecordsTable({ collection, fields, records, searchMode }: Record
                   <TableCell className="text-right">
                     {identifier ? (
                       <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/collections/${collection}/records/${identifier}`}>
+                        <Link
+                          href={
+                            database
+                              ? `/databases/${database}/collections/${collection}/records/${identifier}`
+                              : `/collections/${collection}/records/${identifier}`
+                          }
+                        >
                           View
                         </Link>
                       </Button>
@@ -95,9 +102,6 @@ export function RecordsTable({ collection, fields, records, searchMode }: Record
             })
           )}
         </TableBody>
-        <TableCaption>
-          Displaying {records.length} record{records.length === 1 ? "" : "s"}
-        </TableCaption>
       </Table>
     </div>
   );

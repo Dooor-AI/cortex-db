@@ -24,8 +24,16 @@ def collection_requires_minio(schema: CollectionSchema) -> bool:
     return any(StoreLocation.MINIO in field.store_in for field in schema.fields)
 
 
-def default_bucket_name(collection: str) -> str:
+def default_bucket_name(collection: str, database: Optional[str] = None) -> str:
+    if database:
+        return f"{database}-{collection}".lower()
     return f"cortex-{collection}".lower()
+
+
+def get_qdrant_collection_name(collection: str, database: Optional[str] = None) -> str:
+    if database:
+        return f"{database}__{collection}"
+    return collection
 
 
 @dataclass
@@ -53,12 +61,13 @@ class CollectionService:
         if collection_requires_vectors(schema):
             embedding_service = await get_embedding_service(schema.config.embedding_provider_id)
             vector_size = await embedding_service.get_dimension()
-            await self._qdrant.create_collection(schema, vector_size)
-            qdrant_collection = schema.name
+            qdrant_name = get_qdrant_collection_name(schema.name, schema.database)
+            await self._qdrant.create_collection_by_name(qdrant_name, vector_size)
+            qdrant_collection = qdrant_name
 
         minio_bucket = None
         if collection_requires_minio(schema):
-            bucket = default_bucket_name(schema.name)
+            bucket = default_bucket_name(schema.name, schema.database)
             await self._minio.ensure_bucket(bucket)
             minio_bucket = bucket
 
@@ -74,9 +83,10 @@ class CollectionService:
             return
         await self._postgres.drop_collection(name)
         if collection_requires_vectors(schema):
-            await self._qdrant.delete_collection(name)
+            qdrant_name = get_qdrant_collection_name(schema.name, schema.database)
+            await self._qdrant.delete_collection(qdrant_name)
         if collection_requires_minio(schema):
-            bucket = default_bucket_name(name)
+            bucket = default_bucket_name(schema.name, schema.database)
             # MinIO does not support force delete with contents easily; skip automatic removal.
             logger.warning(
                 "minio_bucket_not_deleted",

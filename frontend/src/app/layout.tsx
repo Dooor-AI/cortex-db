@@ -35,8 +35,11 @@ export default function RootLayout({
                     <Link href="/" className="border border-transparent px-3 py-2 transition hover:border-foreground hover:text-foreground">
                       Overview
                     </Link>
-                    <Link href="/collections" className="border border-transparent px-3 py-2 transition hover:border-foreground hover:text-foreground">
-                      Collections
+                    <Link href="/databases" className="border border-transparent px-3 py-2 transition hover:border-foreground hover:text-foreground">
+                      Databases
+                    </Link>
+                    <Link href="/settings/embeddings" className="border border-transparent px-3 py-2 transition hover:border-foreground hover:text-foreground">
+                      Configuration
                     </Link>
                     <ThemeToggle className="h-8 w-8 border border-border" />
                   </nav>

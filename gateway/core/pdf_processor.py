@@ -40,6 +40,10 @@ class PDFProcessor:
             return ""
 
     async def _extract_text_with_ocr(self, pdf_bytes: bytes) -> str:
+        if self._vision is None:
+            logger.warning("vision_service_not_configured", extra={"message": "OCR not available without GEMINI_API_KEY"})
+            return ""
+
         try:
             images = convert_from_bytes(pdf_bytes)
         except Exception as exc:  # pragma: no cover - defensive

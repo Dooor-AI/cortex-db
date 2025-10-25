@@ -60,6 +60,34 @@ class QdrantService:
 
         await self._client.update_collection(collection_name, payload_schema=payload_schema)
 
+    async def create_collection_by_name(self, collection_name: str, vector_size: int) -> None:
+        """Create a Qdrant collection by name (used for database-prefixed collections)."""
+        vectors_config = qmodels.VectorParams(size=vector_size, distance=qmodels.Distance.COSINE)
+
+        payload_schema: Dict[str, qmodels.PayloadSchemaType] = {
+            "record_id": qmodels.PayloadSchemaType.keyword(),
+            "collection": qmodels.PayloadSchemaType.keyword(),
+            "field": qmodels.PayloadSchemaType.keyword(),
+            "chunk_index": qmodels.PayloadSchemaType.integer(),
+        }
+
+        try:
+            await self._client.get_collection(collection_name)
+            logger.info("qdrant_collection_exists", extra={"collection": collection_name})
+        except Exception:
+            await self._client.recreate_collection(
+                collection_name=collection_name,
+                vectors_config=vectors_config,
+                on_disk_payload=True,
+            )
+            await self._client.update_collection(
+                collection_name,
+                optimizers_config=qmodels.OptimizersConfigDiff(indexing_threshold=20000),
+            )
+            logger.info("qdrant_collection_created", extra={"collection": collection_name})
+
+        await self._client.update_collection(collection_name, payload_schema=payload_schema)
+
     async def upsert_points(self, collection: str, points: Iterable[QdrantPoint]) -> None:
         qdrant_points = [
             qmodels.PointStruct(id=point.id, vector=point.vector, payload=point.payload)

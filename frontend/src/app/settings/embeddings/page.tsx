@@ -211,7 +211,7 @@ export default function EmbeddingSettingsPage() {
               <p className="text-sm text-muted-foreground">Loading…</p>
             ) : sortedProviders.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No providers saved. Collections will use the global GEMINI_API_KEY environment variable.
+                No providers configured. You must add at least one provider to enable embeddings.
               </p>
             ) : (
               <div className="space-y-3">

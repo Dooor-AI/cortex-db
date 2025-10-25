@@ -49,10 +49,24 @@ class PostgresClient:
         pool = await self.connect()
         async with pool.acquire() as conn:
             await conn.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";')
+            # Control table for databases (stored in default 'cortex' database)
+            await conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS _cortex_databases (
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    name TEXT NOT NULL UNIQUE,
+                    description TEXT,
+                    metadata JSONB NOT NULL DEFAULT '{}'::JSONB,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+                """
+            )
             await conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS _cortex_collections (
                     name TEXT PRIMARY KEY,
+                    database_name TEXT,
                     schema JSONB NOT NULL,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -81,6 +95,9 @@ class PostgresClient:
             await conn.execute(
                 "ALTER TABLE _cortex_collections ADD COLUMN IF NOT EXISTS embedding_provider_id UUID;"
             )
+            await conn.execute(
+                "ALTER TABLE _cortex_collections ADD COLUMN IF NOT EXISTS database_name TEXT;"
+            )
 
     async def create_table_from_schema(self, schema: CollectionSchema) -> None:
         table_def = self._build_table_definition(schema)
@@ -99,10 +116,11 @@ class PostgresClient:
                     raise ValueError("Invalid embedding_provider_id") from exc
             await conn.execute(
                 """
-                INSERT INTO _cortex_collections (name, schema, embedding_model, embedding_provider_id, chunk_size, chunk_overlap)
-                VALUES ($1, $2, $3, $4, $5, $6)
+                INSERT INTO _cortex_collections (name, database_name, schema, embedding_model, embedding_provider_id, chunk_size, chunk_overlap)
+                VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7)
                 ON CONFLICT (name) DO UPDATE
-                SET schema = EXCLUDED.schema,
+                SET database_name = EXCLUDED.database_name,
+                    schema = EXCLUDED.schema,
                     embedding_model = EXCLUDED.embedding_model,
                     embedding_provider_id = EXCLUDED.embedding_provider_id,
                     chunk_size = EXCLUDED.chunk_size,
@@ -110,7 +128,8 @@ class PostgresClient:
                     updated_at = NOW();
                 """,
                 schema.name,
-                json.loads(schema.model_dump_json()),
+                schema.database,
+                schema.model_dump_json(),
                 schema.config.embedding_model,
                 provider_uuid,
                 schema.config.chunk_size,
@@ -140,7 +159,11 @@ class PostgresClient:
                 embedding_model,
                 metadata_value,
             )
-        return dict(row)
+        row_dict = dict(row)
+        # Parse metadata JSON string to dict if needed
+        if isinstance(row_dict.get("metadata"), str):
+            row_dict["metadata"] = json.loads(row_dict["metadata"])
+        return row_dict
 
     async def list_embedding_providers(self) -> List[Dict[str, Any]]:
         pool = await self.connect()
@@ -152,7 +175,14 @@ class PostgresClient:
                 ORDER BY name ASC;
                 """
             )
-        return [dict(row) for row in rows]
+        result = []
+        for row in rows:
+            row_dict = dict(row)
+            # Parse metadata JSON string to dict if needed
+            if isinstance(row_dict.get("metadata"), str):
+                row_dict["metadata"] = json.loads(row_dict["metadata"])
+            result.append(row_dict)
+        return result
 
     async def get_embedding_provider(
         self,
@@ -174,7 +204,13 @@ class PostgresClient:
                 """,
                 provider_id,
             )
-        return dict(row) if row else None
+        if not row:
+            return None
+        row_dict = dict(row)
+        # Parse metadata JSON string to dict if needed
+        if isinstance(row_dict.get("metadata"), str):
+            row_dict["metadata"] = json.loads(row_dict["metadata"])
+        return row_dict
 
     async def delete_embedding_provider(self, provider_id: UUID) -> None:
         pool = await self.connect()
@@ -468,15 +504,25 @@ class PostgresClient:
         if not row:
             return None
         data = row["schema"]
+        # Parse JSON string to dict if needed
+        if isinstance(data, str):
+            data = json.loads(data)
         return CollectionSchema.model_validate(data)
 
     async def list_collections(self) -> List[dict[str, Any]]:
         pool = await self.connect()
         async with pool.acquire() as conn:
             rows = await conn.fetch(
-                "SELECT name, schema, created_at, updated_at FROM _cortex_collections ORDER BY name ASC;"
+                "SELECT name, database_name, schema, created_at, updated_at FROM _cortex_collections ORDER BY name ASC;"
             )
-        return [dict(row) for row in rows]
+        result = []
+        for row in rows:
+            row_dict = dict(row)
+            # Parse schema JSON string to dict if needed
+            if isinstance(row_dict.get("schema"), str):
+                row_dict["schema"] = json.loads(row_dict["schema"])
+            result.append(row_dict)
+        return result
 
     async def healthcheck(self) -> bool:
         try:
@@ -486,6 +532,126 @@ class PostgresClient:
             return True
         except Exception:
             return False
+
+    # Database management methods
+    async def create_database(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        # First, register in control table
+        pool = await self.connect()
+        metadata_value = json.dumps(metadata or {})
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO _cortex_databases (name, description, metadata)
+                VALUES ($1, $2, $3::jsonb)
+                RETURNING id, name, description, metadata, created_at, updated_at;
+                """,
+                name,
+                description,
+                metadata_value,
+            )
+
+        # Then create the actual Postgres database
+        # Need to use a connection to 'postgres' database (admin)
+        admin_dsn = self.dsn.rsplit("/", 1)[0] + "/postgres"
+        admin_conn = await asyncpg.connect(admin_dsn)
+        try:
+            await admin_conn.execute(f'CREATE DATABASE "{name}";')
+        finally:
+            await admin_conn.close()
+
+        # Initialize the new database with control tables
+        db_dsn = self.dsn.rsplit("/", 1)[0] + f"/{name}"
+        db_conn = await asyncpg.connect(db_dsn)
+        try:
+            await db_conn.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";')
+            await db_conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS _cortex_collections (
+                    name TEXT PRIMARY KEY,
+                    schema JSONB NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    embedding_model TEXT,
+                    embedding_provider_id UUID,
+                    chunk_size INTEGER,
+                    chunk_overlap INTEGER
+                );
+                """
+            )
+        finally:
+            await db_conn.close()
+
+        row_dict = dict(row)
+        if isinstance(row_dict.get("metadata"), str):
+            row_dict["metadata"] = json.loads(row_dict["metadata"])
+        return row_dict
+
+    async def list_databases(self) -> List[Dict[str, Any]]:
+        pool = await self.connect()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT id, name, description, metadata, created_at, updated_at
+                FROM _cortex_databases
+                ORDER BY name ASC;
+                """
+            )
+        result = []
+        for row in rows:
+            row_dict = dict(row)
+            if isinstance(row_dict.get("metadata"), str):
+                row_dict["metadata"] = json.loads(row_dict["metadata"])
+            result.append(row_dict)
+        return result
+
+    async def get_database(self, name: str) -> Optional[Dict[str, Any]]:
+        pool = await self.connect()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT id, name, description, metadata, created_at, updated_at
+                FROM _cortex_databases
+                WHERE name = $1;
+                """,
+                name,
+            )
+        if not row:
+            return None
+        row_dict = dict(row)
+        if isinstance(row_dict.get("metadata"), str):
+            row_dict["metadata"] = json.loads(row_dict["metadata"])
+        return row_dict
+
+    async def delete_database(self, name: str) -> None:
+        # First remove from control table
+        pool = await self.connect()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "DELETE FROM _cortex_databases WHERE name = $1;",
+                name,
+            )
+
+        # Then drop the actual Postgres database
+        admin_dsn = self.dsn.rsplit("/", 1)[0] + "/postgres"
+        admin_conn = await asyncpg.connect(admin_dsn)
+        try:
+            # Terminate all connections to the database first
+            await admin_conn.execute(
+                f"""
+                SELECT pg_terminate_backend(pg_stat_activity.pid)
+                FROM pg_stat_activity
+                WHERE pg_stat_activity.datname = '{name}'
+                  AND pid <> pg_backend_pid();
+                """
+            )
+            await admin_conn.execute(f'DROP DATABASE IF EXISTS "{name}";')
+        finally:
+            await admin_conn.close()
 
 
 _client: Optional[PostgresClient] = None

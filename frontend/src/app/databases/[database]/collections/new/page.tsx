@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   CollectionSchema,
   EmbeddingProviderSummary,
-  createCollection,
+  apiRequest,
   fetchEmbeddingProviders,
 } from "@/lib/cortex-client";
 
@@ -96,6 +96,8 @@ function createDefaultField(): FieldState {
 
 export default function CreateCollectionPage() {
   const router = useRouter();
+  const params = useParams();
+  const database = params.database as string;
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -269,10 +271,16 @@ export default function CreateCollectionPage() {
 
     try {
       setIsSubmitting(true);
-      const response = await createCollection(schemaPayload);
-      setSuccess(`Collection "${response.collection}" created successfully.`);
+      const res = await apiRequest(`/databases/${encodeURIComponent(database)}/collections`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(schemaPayload),
+      });
+      const response = await res.json();
+      setSuccess(`Collection "${response.collection}" created successfully in database "${database}".`);
       setTimeout(() => {
-        router.push(`/collections/${encodeURIComponent(response.collection)}`);
+        router.refresh(); // Force refresh to clear cache
+        router.push(`/databases/${encodeURIComponent(database)}/collections`);
       }, 1200);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create collection.";
@@ -286,7 +294,9 @@ export default function CreateCollectionPage() {
     <div className="container space-y-8 py-10">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-primary">New Collection</h1>
+          <h1 className="text-3xl font-semibold text-primary">
+            {database} / New Collection
+          </h1>
           <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
             Compose schema, vector routing, and storage in one step.
           </p>

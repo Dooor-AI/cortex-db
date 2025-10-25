@@ -36,11 +36,11 @@ class GeminiVisionService:
 _vision_service: Optional[GeminiVisionService] = None
 
 
-def get_vision_service() -> GeminiVisionService:
+def get_vision_service() -> Optional[GeminiVisionService]:
     global _vision_service
     if _vision_service is None:
         settings = get_settings()
         if not settings.gemini_api_key:
-            raise RuntimeError("GEMINI_API_KEY is not configured")
+            return None  # Return None if API key not configured
         _vision_service = GeminiVisionService(settings.gemini_api_key, settings.gemini_vision_model)
     return _vision_service

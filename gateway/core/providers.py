@@ -47,7 +47,7 @@ class ProvidersService:
         except asyncpg.UniqueViolationError as exc:  # pragma: no cover - defensive
             logger.warning(
                 "embedding_provider_conflict",
-                extra={"name": payload.name, "provider": payload.provider.value},
+                extra={"provider_name": payload.name, "provider_type": payload.provider.value},
             )
             raise ValueError("An embedding provider with this name already exists") from exc
 

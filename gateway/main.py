@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from gateway.api import collections, files, health, providers, records, search
+from gateway.api import collections, databases, files, health, providers, records, search
 from gateway.core.postgres import get_postgres_client
 
 
@@ -28,7 +28,9 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health.router)
+    app.include_router(databases.router)
     app.include_router(collections.router)
+    app.include_router(collections.database_collections_router)  # Database-scoped collections
     app.include_router(records.router)
     app.include_router(search.router)
     app.include_router(files.router)

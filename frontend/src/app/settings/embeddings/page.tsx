@@ -53,7 +53,7 @@ export default function EmbeddingSettingsPage() {
       const response = await fetchEmbeddingProviders();
       setProviders(response);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Falha ao carregar provedores");
+      setError(err instanceof Error ? err.message : "Failed to load providers");
     } finally {
       setLoading(false);
     }
@@ -65,11 +65,11 @@ export default function EmbeddingSettingsPage() {
     setSuccess(null);
 
     if (!form.name.trim()) {
-      setError("Informe um nome para identificar o provedor.");
+      setError("Please provide a name to identify the provider.");
       return;
     }
     if (!form.api_key.trim()) {
-      setError("Inclua a API key antes de salvar.");
+      setError("Please include the API key before saving.");
       return;
     }
 
@@ -83,7 +83,7 @@ export default function EmbeddingSettingsPage() {
       };
       const created = await createEmbeddingProvider(payload);
       setProviders((prev) => [...prev, created]);
-      setSuccess(`Provedor "${created.name}" configurado com sucesso.`);
+      setSuccess(`Provider "${created.name}" configured successfully.`);
       setForm({
         name: "",
         provider: "gemini",
@@ -92,7 +92,7 @@ export default function EmbeddingSettingsPage() {
         metadata: {},
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao salvar provedor");
+      setError(err instanceof Error ? err.message : "Error saving provider");
     } finally {
       setSubmitting(false);
     }
@@ -102,7 +102,7 @@ export default function EmbeddingSettingsPage() {
     const provider = providers.find((item) => item.id === id);
     if (!provider) return;
     const confirmed = window.confirm(
-      `Remover o provedor "${provider.name}"? Coleções que o usam voltarão a usar a configuração padrão.`,
+      `Remove provider "${provider.name}"? Collections using it will fall back to the default configuration.`,
     );
     if (!confirmed) return;
 
@@ -111,7 +111,7 @@ export default function EmbeddingSettingsPage() {
       await deleteEmbeddingProvider(id);
       setProviders((prev) => prev.filter((item) => item.id !== id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao remover provedor");
+      setError(err instanceof Error ? err.message : "Error removing provider");
     } finally {
       setDeletingId(null);
     }
@@ -122,20 +122,20 @@ export default function EmbeddingSettingsPage() {
       <div className="space-y-1">
         <h1 className="text-3xl font-semibold text-primary">Embedding Providers</h1>
         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-          Gerencie credenciais e modelos disponíveis para vetorização.
+          Manage credentials and models available for vectorization.
         </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <Card>
           <CardHeader>
-            <CardTitle>Adicionar provedor</CardTitle>
-            <CardDescription>Salve chaves de API para habilitar embeddings dedicados.</CardDescription>
+            <CardTitle>Add Provider</CardTitle>
+            <CardDescription>Save API keys to enable dedicated embeddings.</CardDescription>
           </CardHeader>
           <CardContent>
             <form className="grid gap-4" onSubmit={handleCreate}>
               <div className="grid gap-2">
-                <label className="text-sm font-medium text-muted-foreground">Nome interno</label>
+                <label className="text-sm font-medium text-muted-foreground">Internal name</label>
                 <Input
                   value={form.name}
                   onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
@@ -144,7 +144,7 @@ export default function EmbeddingSettingsPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <label className="text-sm font-medium text-muted-foreground">Provedor</label>
+                <label className="text-sm font-medium text-muted-foreground">Provider</label>
                 <select
                   className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                   value={form.provider}
@@ -175,7 +175,7 @@ export default function EmbeddingSettingsPage() {
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Armazenamos a chave somente no backend. Ela nunca é publicada para o frontend.
+                  We store the key only on the backend. It is never exposed to the frontend.
                 </p>
               </div>
 
@@ -192,7 +192,7 @@ export default function EmbeddingSettingsPage() {
 
               <div className="flex justify-end">
                 <Button type="submit" disabled={submitting} className="min-w-[160px]">
-                  {submitting ? "Salvando…" : "Salvar provedor"}
+                  {submitting ? "Saving…" : "Save provider"}
                 </Button>
               </div>
             </form>
@@ -201,17 +201,17 @@ export default function EmbeddingSettingsPage() {
 
         <Card className="h-full">
           <CardHeader>
-            <CardTitle>Provedores configurados</CardTitle>
+            <CardTitle>Configured Providers</CardTitle>
             <CardDescription>
-              Defina múltiplos provedores e escolha em cada coleção qual usar.
+              Define multiple providers and choose which one to use for each collection.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {loading ? (
-              <p className="text-sm text-muted-foreground">Carregando…</p>
+              <p className="text-sm text-muted-foreground">Loading…</p>
             ) : sortedProviders.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Nenhum provedor salvo. As coleções usarão a variável de ambiente global GEMINI_API_KEY.
+                No providers saved. Collections will use the global GEMINI_API_KEY environment variable.
               </p>
             ) : (
               <div className="space-y-3">
@@ -225,11 +225,11 @@ export default function EmbeddingSettingsPage() {
                         <span className="font-semibold text-primary">{provider.name}</span>
                         <Badge variant="outline">{provider.provider}</Badge>
                         <Badge variant={provider.enabled ? "secondary" : "outline"}>
-                          {provider.enabled ? "ativo" : "inativo"}
+                          {provider.enabled ? "active" : "inactive"}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Modelo: {provider.embedding_model}
+                        Model: {provider.embedding_model}
                       </p>
                     </div>
                     <Button
@@ -239,7 +239,7 @@ export default function EmbeddingSettingsPage() {
                       disabled={deletingId === provider.id}
                       onClick={() => void handleDelete(provider.id)}
                     >
-                      {deletingId === provider.id ? "Removendo…" : "Remover"}
+                      {deletingId === provider.id ? "Removing…" : "Remove"}
                     </Button>
                   </div>
                 ))}

@@ -7,6 +7,7 @@
 - **Estilo**: Terminal/CLI aesthetic, ícones autênticos, sem elementos coloridos genéricos
 
 ## Frontend
+- **IDIOMA OBRIGATÓRIO**: Todos os textos da UI devem estar em INGLÊS - labels, placeholders, mensagens de erro, botões, títulos, descrições, etc.
 - Usar shadcn para componentes de UI
 - Se um componente já existe (Button, Input, etc), SEMPRE reusar - nunca criar do zero
 - Next.js está em `frontend/`

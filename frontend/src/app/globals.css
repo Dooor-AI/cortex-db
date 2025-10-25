@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root,
+.dark {
+  --background: 210 10% 3%;
+  --foreground: 210 15% 92%;
+  --card: 220 9% 7%;
+  --card-foreground: 210 15% 92%;
+  --popover: 220 9% 8%;
+  --popover-foreground: 210 15% 92%;
+  --primary: 0 0% 96%;
+  --primary-foreground: 214 10% 8%;
+  --secondary: 220 8% 12%;
+  --secondary-foreground: 210 15% 92%;
+  --muted: 220 7% 16%;
+  --muted-foreground: 210 10% 60%;
+  --accent: 210 20% 80%;
+  --accent-foreground: 210 15% 10%;
+  --destructive: 0 75% 54%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 215 8% 18%;
+  --input: 215 8% 18%;
+  --ring: 0 0% 96%;
+  --radius: 0.4rem;
+  --font-mono: "IBM Plex Mono", "Menlo", "Monaco", monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply text-foreground;
+    font-family: var(--font-mono), "IBM Plex Mono", monospace;
+    font-size: 0.92rem;
+    letter-spacing: 0.015em;
+    color-scheme: dark;
+    background-color: hsl(var(--background));
+    background-image:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.015) 0px, transparent 1px),
+      radial-gradient(circle at 0 0, rgba(255, 255, 255, 0.04), transparent 55%);
+    background-size: 24px 24px, 100% 100%;
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .terminal-card {
+    @apply relative overflow-hidden rounded-sm border border-border bg-card;
+  }
+
+  .terminal-card::before {
+    content: "";
+    @apply pointer-events-none absolute inset-0 border border-white/5 opacity-0 transition-opacity duration-300;
+  }
+
+  .terminal-divider {
+    @apply border-t border-border/60;
+  }
+
+  .terminal-heading {
+    @apply font-sans text-[0.6rem] uppercase tracking-[0.35em] text-muted-foreground/80;
+  }
+
+  .terminal-metric {
+    @apply font-mono text-3xl font-semibold text-primary;
+  }
+}

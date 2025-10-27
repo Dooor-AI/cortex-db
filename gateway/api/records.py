@@ -4,6 +4,7 @@ import json
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
+from fastapi.responses import StreamingResponse
 
 from ..core.records import RecordService, get_record_service
 
@@ -82,6 +83,26 @@ async def get_record_vectors(collection: str, record_id: str, service: RecordSer
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     return {"vectors": vectors}
+
+
+@router.get("/{record_id}/files/{field_name}")
+async def download_file(
+    collection: str,
+    record_id: str,
+    field_name: str,
+    service: RecordService = Depends(get_service)
+):
+    """Download a file from a record's file field"""
+    try:
+        file_stream, content_type, filename = await service.get_file(collection, record_id, field_name)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+    return StreamingResponse(
+        file_stream,
+        media_type=content_type or "application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
 
 
 @router.delete("/{record_id}")

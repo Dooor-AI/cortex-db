@@ -25,9 +25,19 @@ def collection_requires_minio(schema: CollectionSchema) -> bool:
 
 
 def default_bucket_name(collection: str, database: Optional[str] = None) -> str:
+    """Generate a valid S3/MinIO bucket name from collection name.
+    
+    Bucket names must:
+    - Be lowercase
+    - Only contain letters, numbers, and hyphens
+    - Not contain underscores
+    """
+    # Replace underscores with hyphens for S3/MinIO compatibility
+    safe_collection = collection.replace("_", "-")
     if database:
-        return f"{database}-{collection}".lower()
-    return f"cortex-{collection}".lower()
+        safe_database = database.replace("_", "-")
+        return f"{safe_database}-{safe_collection}".lower()
+    return f"cortex-{safe_collection}".lower()
 
 
 def get_qdrant_collection_name(collection: str, database: Optional[str] = None) -> str:
@@ -59,6 +69,12 @@ class CollectionService:
 
         qdrant_collection = None
         if collection_requires_vectors(schema):
+            # Require embedding provider when vectorization is enabled
+            if not schema.config or not schema.config.embedding_provider_id:
+                raise ValueError(
+                    "Embedding provider is required when 'vectorize=True' is used. "
+                    "Please configure an embedding provider in settings or remove vectorize=True from your fields."
+                )
             embedding_service = await get_embedding_service(schema.config.embedding_provider_id)
             vector_size = await embedding_service.get_dimension()
             qdrant_name = get_qdrant_collection_name(schema.name, schema.database)

@@ -307,8 +307,55 @@ class RecordService:
                 except Exception:
                     logger.warning("minio_delete_failed", extra={"path": row[field.name]})
 
-        await self._qdrant.delete_record(collection, record_id)
+        if collection_requires_vectors(schema):
+            await self._qdrant.delete_record(collection, record_id)
         await self._postgres.delete_record(collection, record_id)
+
+    async def get_file(self, collection: str, record_id: str, field_name: str):
+        """Get a file from a record's file field.
+
+        Returns:
+            Tuple of (file_stream, content_type, filename)
+        """
+        schema = await self._collections.get_collection_schema(collection)
+        if not schema:
+            raise ValueError(f"Collection {collection} not found")
+
+        # Find the field in schema
+        field = next((f for f in schema.fields if f.name == field_name), None)
+        if not field or field.type != FieldType.FILE:
+            raise ValueError(f"Field {field_name} is not a file field")
+
+        # Get record to find file path
+        row = await self._postgres.fetch_record(collection, record_id)
+        if not row:
+            raise ValueError("Record not found")
+
+        file_path = row.get(field_name)
+        if not file_path:
+            raise ValueError(f"No file uploaded for field {field_name}")
+
+        # Get file from MinIO
+        bucket = default_bucket_name(collection)
+        try:
+            response = await self._minio.get_object(bucket, file_path)
+            # Extract filename from path (format: {record_id}/{field_name}/{filename})
+            filename = file_path.split("/")[-1] if "/" in file_path else file_path
+            # Determine content type from filename extension
+            content_type = None
+            if filename.endswith(".pdf"):
+                content_type = "application/pdf"
+            elif filename.endswith((".jpg", ".jpeg")):
+                content_type = "image/jpeg"
+            elif filename.endswith(".png"):
+                content_type = "image/png"
+            elif filename.endswith(".txt"):
+                content_type = "text/plain"
+
+            return response, content_type, filename
+        except Exception as e:
+            logger.error("minio_download_failed", extra={"path": file_path, "error": str(e)})
+            raise ValueError(f"Failed to download file: {str(e)}")
 
     async def update_record(
         self,

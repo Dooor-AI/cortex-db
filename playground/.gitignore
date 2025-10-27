@@ -1,0 +1,20 @@
+# Arquivos de teste gerados
+sample_files/
+*.txt
+*.pdf
+*.jpg
+*.png
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Virtual env
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/

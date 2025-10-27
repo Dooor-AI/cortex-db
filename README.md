@@ -11,8 +11,9 @@ CortexDB unifica dados relacionais, vetoriais e arquivos binários em uma única
 
 1. Copie `.env.example` para `.env` e preencha `GEMINI_API_KEY`.
 2. Execute `docker-compose up --build` para iniciar os serviços.
-3. Utilize os schemas de exemplo em `schemas/` para criar collections.
-4. A documentação interativa estará disponível em `http://localhost:8000/docs`.
+3. para parar o docker serv ice, docker compose down
+4. Utilize os schemas de exemplo em `schemas/` para criar collections.
+5. A documentação interativa estará disponível em `http://localhost:8000/docs`.
 
 ## Frontend (CortexDB Studio)
 

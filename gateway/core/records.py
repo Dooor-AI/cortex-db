@@ -51,8 +51,10 @@ class RecordService:
             raise ValueError(f"Collection {collection_name} not found")
 
         embedding_service: Optional[GeminiEmbeddingService] = None
+        vector_size = None
         if collection_requires_vectors(schema):
             embedding_service = await get_embedding_service(schema.config.embedding_provider_id)
+            vector_size = await embedding_service.get_dimension()
 
         record_id = str(uuid.uuid4())
         prepared = await self._prepare_record(schema, record_id, data, files, embedding_service)
@@ -61,6 +63,9 @@ class RecordService:
         try:
             await self._postgres.insert_record(schema, postgres_data, prepared.array_data)
             if prepared.qdrant_points:
+                # Ensure Qdrant collection exists before upserting points
+                if vector_size is not None:
+                    await self._qdrant.ensure_collection_exists(collection_name, vector_size)
                 await self._qdrant.upsert_points(collection_name, prepared.qdrant_points)
         except Exception:
             # Rollback file uploads if Postgres/Qdrant fails
@@ -133,9 +138,13 @@ class RecordService:
                             raise ValueError("Embedding provider is not configured for vector fields")
                         vectors = await embedding_service.embed_texts(text_fragments)
                         for idx, vector in enumerate(vectors):
+                            # Generate deterministic UUID from record_id, field name, and chunk index
+                            point_id_str = f"{record_id}:{field.name}:{idx}"
+                            point_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, point_id_str)
+
                             qdrant_points.append(
                                 QdrantPoint(
-                                    id=f"{record_id}:{field.name}:{idx}",
+                                    id=str(point_uuid),
                                     vector=vector,
                                     payload={
                                         "record_id": record_id,
@@ -178,9 +187,12 @@ class RecordService:
                     raise ValueError("Embedding provider is not configured for vector fields")
                 vectors = await embedding_service.embed_texts(fragments)
                 for idx, vector in enumerate(vectors):
+                    # Generate deterministic UUID from record_id, field name, and chunk index
+                    point_id_str = f"{record_id}:{field.name}:{idx}"
+                    point_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, point_id_str)
                     qdrant_points.append(
                         QdrantPoint(
-                            id=f"{record_id}:{field.name}:{idx}",
+                            id=str(point_uuid),
                             vector=vector,
                             payload={
                                 "record_id": record_id,
@@ -233,6 +245,50 @@ class RecordService:
             "record": serialized,
             "files": files,
         }
+
+    async def get_record_vectors(self, collection: str, record_id: str) -> List[Dict[str, Any]]:
+        """Get all vector chunks for a record from Qdrant"""
+        schema = await self._collections.get_collection_schema(collection)
+        if not schema:
+            raise ValueError(f"Collection {collection} not found")
+
+        # Query Qdrant for all points with this record_id
+        from qdrant_client.http import models as qmodels
+
+        try:
+            response = await self._qdrant._client.scroll(
+                collection_name=collection,
+                scroll_filter=qmodels.Filter(
+                    must=[
+                        qmodels.FieldCondition(
+                            key="record_id",
+                            match=qmodels.MatchValue(value=record_id),
+                        )
+                    ]
+                ),
+                limit=100,
+                with_payload=True,
+                with_vectors=False,
+            )
+
+            points = response[0]  # scroll returns (points, next_page_offset)
+
+            # Sort by chunk_index and return
+            vectors = []
+            for point in points:
+                vectors.append({
+                    "id": point.id,
+                    "field": point.payload.get("field"),
+                    "chunk_index": point.payload.get("chunk_index"),
+                    "text": point.payload.get("text"),
+                })
+
+            # Sort by chunk_index
+            vectors.sort(key=lambda x: x.get("chunk_index", 0))
+            return vectors
+        except Exception:
+            # Collection might not exist or no vectors
+            return []
 
     async def delete_record(self, collection: str, record_id: str) -> None:
         schema = await self._collections.get_collection_schema(collection)
@@ -322,9 +378,12 @@ class RecordService:
                         raise ValueError("Embedding provider is not configured for vector fields")
                     vectors = await embedding_service.embed_texts(text_fragments)
                     for idx, vector in enumerate(vectors):
+                        # Generate deterministic UUID from record_id, field name, and chunk index
+                        point_id_str = f"{record_id}:{field.name}:{idx}"
+                        point_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, point_id_str)
                         qdrant_points.append(
                             QdrantPoint(
-                                id=f"{record_id}:{field.name}:{idx}",
+                                id=str(point_uuid),
                                 vector=vector,
                                 payload={
                                     "record_id": record_id,
@@ -356,9 +415,12 @@ class RecordService:
                         raise ValueError("Embedding provider is not configured for vector fields")
                     vectors = await embedding_service.embed_texts(fragments)
                     for idx, vector in enumerate(vectors):
+                        # Generate deterministic UUID from record_id, field name, and chunk index
+                        point_id_str = f"{record_id}:{field.name}:{idx}"
+                        point_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, point_id_str)
                         qdrant_points.append(
                             QdrantPoint(
-                                id=f"{record_id}:{field.name}:{idx}",
+                                id=str(point_uuid),
                                 vector=vector,
                                 payload={
                                     "record_id": record_id,
@@ -464,10 +526,19 @@ class RecordService:
                     content,
                     field.extract_config,
                 )
+                # Use field config if available, otherwise use defaults
+                effective_chunk_size = chunk_size
+                effective_chunk_overlap = chunk_overlap
+                if field.extract_config:
+                    if field.extract_config.chunk_size is not None:
+                        effective_chunk_size = field.extract_config.chunk_size
+                    if field.extract_config.chunk_overlap is not None:
+                        effective_chunk_overlap = field.extract_config.chunk_overlap
+
                 text_fragments = chunk_text(
                     extracted,
-                    field.extract_config.chunk_size if field.extract_config else chunk_size,
-                    field.extract_config.chunk_overlap if field.extract_config else chunk_overlap,
+                    effective_chunk_size,
+                    effective_chunk_overlap,
                 ) if extracted else []
             elif upload.content_type and upload.content_type.startswith("image/"):
                 from .vision import get_vision_service

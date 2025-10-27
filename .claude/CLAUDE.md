@@ -36,6 +36,22 @@
 - Sempre rodar via `docker compose up --build`
 - Serviços: postgres, qdrant, minio, gateway, studio
 
+### Otimizações de Build e Desenvolvimento
+- **Hot reload ativado em AMBOS serviços**:
+  - **Gateway**: volumes (`./gateway:/app/gateway`) + `--reload` flag
+    - Mudanças no código Python refletem instantaneamente sem rebuild
+  - **Studio (Next.js)**: volumes (`./frontend/src:/app/src`) + `npm run dev`
+    - Mudanças no frontend refletem instantaneamente sem rebuild
+    - Fast Refresh do Next.js ativo
+- **Cache de dependências**: Dockerfiles usam `--mount=type=cache` para pip e npm
+  - Primeira build baixa tudo, próximas builds usam cache (muito mais rápido)
+- **.dockerignore configurado**: Exclui `__pycache__`, `node_modules`, `.git`, etc
+  - Reduz contexto de build em ~88% (27KB → 3.4KB)
+- **Para desenvolvimento**: Apenas edite código e salve - ambos servidores recarregam automaticamente
+- **Para rebuild completo**: `docker compose up --build -d [gateway|studio]` (só quando:
+  - Adicionar/remover dependências (requirements.txt ou package.json)
+  - Mudar configurações do Docker ou Dockerfile)
+
 ## Embedding Providers
 - Sistema de providers customizados implementado
 - Cada collection pode ter seu próprio provider ou usar o padrão (env vars)

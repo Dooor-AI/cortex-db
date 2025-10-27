@@ -21,13 +21,16 @@ async def _parse_request_body(request: Request) -> tuple[Dict[str, Any], Dict[st
         data: Dict[str, Any] = {}
         files: Dict[str, UploadFile] = {}
         for key, value in form.multi_items():
-            if isinstance(value, UploadFile):
+            # Check if value has file-like attributes (UploadFile)
+            if hasattr(value, 'file') and hasattr(value, 'filename'):
                 files[key] = value
-            else:
+            elif isinstance(value, str):
                 try:
                     data[key] = json.loads(value)
                 except json.JSONDecodeError:
                     data[key] = value
+            else:
+                data[key] = value
         return data, files
 
     try:
@@ -69,6 +72,16 @@ async def update_record(collection: str, record_id: str, request: Request, servi
         status_code = status.HTTP_404_NOT_FOUND if "not found" in str(exc).lower() else status.HTTP_400_BAD_REQUEST
         raise HTTPException(status_code=status_code, detail=str(exc))
     return result
+
+
+@router.get("/{record_id}/vectors")
+async def get_record_vectors(collection: str, record_id: str, service: RecordService = Depends(get_service)):
+    """Get all vector chunks for a record"""
+    try:
+        vectors = await service.get_record_vectors(collection, record_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    return {"vectors": vectors}
 
 
 @router.delete("/{record_id}")

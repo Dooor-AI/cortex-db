@@ -60,16 +60,24 @@ services:
         condition: service_healthy
     volumes:
       - ./schemas:/app/schemas
+      - ./gateway:/app/gateway  # Hot reload - code changes reflect immediately
+    command: uvicorn gateway.main:app --host 0.0.0.0 --port 8000 --reload
 
   studio:
     build: ./frontend
     environment:
-      NEXT_PUBLIC_GATEWAY_URL: http://gateway:8000
+      CORTEX_GATEWAY_URL: http://gateway:8000  # Server-side (dentro do Docker)
+      NEXT_PUBLIC_GATEWAY_URL: http://localhost:8000  # Client-side (navegador)
+      NODE_ENV: development
     ports:
       - "3000:3000"
     depends_on:
       gateway:
         condition: service_started
+    volumes:
+      - ./frontend/src:/app/src  # Hot reload - frontend changes reflect immediately
+      - ./frontend/public:/app/public
+    command: npm run dev
 
 volumes:
   postgres_data:

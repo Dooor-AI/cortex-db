@@ -13,6 +13,7 @@ import { fetchCollectionSchema, fetchRecordDetail } from "@/lib/cortex-client";
 import { formatDate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { SchemaField } from "@/lib/types";
+import { FilePreview } from "@/components/file-preview";
 
 interface PageProps {
   params: Promise<{ name: string; id: string }>;
@@ -49,18 +50,40 @@ export default async function RecordDetailPage({ params }: PageProps) {
       </nav>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <Card>
-          <CardHeader className="space-y-2">
-            <div className="terminal-heading">Record Payload</div>
-            <CardTitle className="font-mono text-base text-primary">ID / {id}</CardTitle>
-            <CardDescription>Raw document view as received from CortexDB gateway.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <pre className="max-h-[70vh] overflow-auto rounded-md border border-border/60 bg-secondary/40 p-4 text-xs text-primary">
-              {JSON.stringify(record, null, 2)}
-            </pre>
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          {/* File Previews */}
+          {Object.keys(files).length > 0 && (
+            <div className="space-y-4">
+              <div className="terminal-heading">File Previews</div>
+              {Object.entries(files).map(([fieldName, _url]) => {
+                const filePath = record[fieldName] as string;
+                return (
+                  <FilePreview
+                    key={fieldName}
+                    fieldName={fieldName}
+                    filePath={filePath}
+                    collectionName={name}
+                    recordId={id}
+                  />
+                );
+              })}
+            </div>
+          )}
+
+          {/* Record Payload */}
+          <Card>
+            <CardHeader className="space-y-2">
+              <div className="terminal-heading">Record Payload</div>
+              <CardTitle className="font-mono text-base text-primary">ID / {id}</CardTitle>
+              <CardDescription>Raw document view as received from CortexDB gateway.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <pre className="max-h-[70vh] overflow-auto rounded-md border border-border/60 bg-secondary/40 p-4 text-xs text-primary">
+                {JSON.stringify(record, null, 2)}
+              </pre>
+            </CardContent>
+          </Card>
+        </div>
 
         <aside className="space-y-4">
           <Card>

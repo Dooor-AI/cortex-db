@@ -254,7 +254,7 @@ export function AdvancedFilters({ fields, onApplyFilters, currentFilters = {} }:
         <div className="space-y-4 py-4">
           {conditions.length === 0 ? (
             <div className="rounded-md border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
-              No filters added yet. Click "Add Filter" to create a condition.
+              No filters added yet. Click &quot;Add Filter&quot; to create a condition.
             </div>
           ) : (
             <div className="space-y-3">

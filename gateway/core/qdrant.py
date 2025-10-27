@@ -33,10 +33,10 @@ class QdrantService:
         vectors_config = qmodels.VectorParams(size=vector_size, distance=qmodels.Distance.COSINE)
 
         payload_schema: Dict[str, qmodels.PayloadSchemaType] = {
-            "record_id": qmodels.PayloadSchemaType.keyword(),
-            "collection": qmodels.PayloadSchemaType.keyword(),
-            "field": qmodels.PayloadSchemaType.keyword(),
-            "chunk_index": qmodels.PayloadSchemaType.integer(),
+            "record_id": qmodels.PayloadSchemaType.KEYWORD,
+            "collection": qmodels.PayloadSchemaType.KEYWORD,
+            "field": qmodels.PayloadSchemaType.KEYWORD,
+            "chunk_index": qmodels.PayloadSchemaType.INTEGER,
         }
 
         for field in schema.fields:
@@ -58,18 +58,43 @@ class QdrantService:
             )
             logger.info("qdrant_collection_created", extra={"collection": collection_name})
 
-        await self._client.update_collection(collection_name, payload_schema=payload_schema)
+            # Create payload indexes for base fields
+            try:
+                await self._client.create_payload_index(
+                    collection_name=collection_name,
+                    field_name="record_id",
+                    field_schema=qmodels.PayloadSchemaType.KEYWORD,
+                )
+                await self._client.create_payload_index(
+                    collection_name=collection_name,
+                    field_name="collection",
+                    field_schema=qmodels.PayloadSchemaType.KEYWORD,
+                )
+                await self._client.create_payload_index(
+                    collection_name=collection_name,
+                    field_name="field",
+                    field_schema=qmodels.PayloadSchemaType.KEYWORD,
+                )
+                await self._client.create_payload_index(
+                    collection_name=collection_name,
+                    field_name="chunk_index",
+                    field_schema=qmodels.PayloadSchemaType.INTEGER,
+                )
+
+                # Create indexes for schema-specific fields
+                for field in schema.fields:
+                    if StoreLocation.QDRANT_PAYLOAD in field.store_in or StoreLocation.QDRANT in field.store_in:
+                        await self._client.create_payload_index(
+                            collection_name=collection_name,
+                            field_name=field.name,
+                            field_schema=self._map_payload_type(field),
+                        )
+            except Exception as e:
+                logger.warning("failed_to_create_payload_indexes", extra={"error": str(e)})
 
     async def create_collection_by_name(self, collection_name: str, vector_size: int) -> None:
         """Create a Qdrant collection by name (used for database-prefixed collections)."""
         vectors_config = qmodels.VectorParams(size=vector_size, distance=qmodels.Distance.COSINE)
-
-        payload_schema: Dict[str, qmodels.PayloadSchemaType] = {
-            "record_id": qmodels.PayloadSchemaType.keyword(),
-            "collection": qmodels.PayloadSchemaType.keyword(),
-            "field": qmodels.PayloadSchemaType.keyword(),
-            "chunk_index": qmodels.PayloadSchemaType.integer(),
-        }
 
         try:
             await self._client.get_collection(collection_name)
@@ -86,7 +111,39 @@ class QdrantService:
             )
             logger.info("qdrant_collection_created", extra={"collection": collection_name})
 
-        await self._client.update_collection(collection_name, payload_schema=payload_schema)
+            # Create payload indexes for better filtering performance
+            try:
+                await self._client.create_payload_index(
+                    collection_name=collection_name,
+                    field_name="record_id",
+                    field_schema=qmodels.PayloadSchemaType.KEYWORD,
+                )
+                await self._client.create_payload_index(
+                    collection_name=collection_name,
+                    field_name="collection",
+                    field_schema=qmodels.PayloadSchemaType.KEYWORD,
+                )
+                await self._client.create_payload_index(
+                    collection_name=collection_name,
+                    field_name="field",
+                    field_schema=qmodels.PayloadSchemaType.KEYWORD,
+                )
+                await self._client.create_payload_index(
+                    collection_name=collection_name,
+                    field_name="chunk_index",
+                    field_schema=qmodels.PayloadSchemaType.INTEGER,
+                )
+            except Exception as e:
+                logger.warning("failed_to_create_payload_indexes", extra={"error": str(e)})
+
+    async def ensure_collection_exists(self, collection_name: str, vector_size: int) -> None:
+        """Ensure a Qdrant collection exists, create it if it doesn't."""
+        try:
+            await self._client.get_collection(collection_name)
+            logger.info("qdrant_collection_exists", extra={"collection": collection_name})
+        except Exception:
+            logger.info("creating_missing_qdrant_collection", extra={"collection": collection_name})
+            await self.create_collection_by_name(collection_name, vector_size)
 
     async def upsert_points(self, collection: str, points: Iterable[QdrantPoint]) -> None:
         qdrant_points = [
@@ -177,12 +234,12 @@ class QdrantService:
 
     def _map_payload_type(self, field: FieldDefinition) -> qmodels.PayloadSchemaType:
         if field.type == FieldType.INT:
-            return qmodels.PayloadSchemaType.integer()
+            return qmodels.PayloadSchemaType.INTEGER
         if field.type == FieldType.FLOAT:
-            return qmodels.PayloadSchemaType.float()
+            return qmodels.PayloadSchemaType.FLOAT
         if field.type == FieldType.BOOLEAN:
-            return qmodels.PayloadSchemaType.boolean()
-        return qmodels.PayloadSchemaType.keyword()
+            return qmodels.PayloadSchemaType.BOOL
+        return qmodels.PayloadSchemaType.KEYWORD
 
 
 _service: Optional[QdrantService] = None

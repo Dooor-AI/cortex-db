@@ -33,6 +33,13 @@ class PostgresClient:
         self.dsn = dsn
         self._pool: Optional[asyncpg.Pool] = None
 
+    @property
+    def pool(self) -> asyncpg.Pool:
+        """Get the connection pool (must be connected first)."""
+        if self._pool is None:
+            raise RuntimeError("PostgresClient not connected. Call connect() first.")
+        return self._pool
+
     async def connect(self) -> asyncpg.Pool:
         if self._pool is None:
             logger.info("initializing_postgres_pool", extra={"dsn": self.dsn})

@@ -19,6 +19,7 @@ import {
   EmbeddingProviderSummary,
   fetchEmbeddingProviders,
 } from "@/lib/cortex-client";
+import { APIKeysSection } from "@/components/api-keys-section";
 
 const DEFAULT_MODEL = "models/text-embedding-004";
 
@@ -120,13 +121,30 @@ export default function EmbeddingSettingsPage() {
   return (
     <div className="container space-y-8 py-10">
       <div className="space-y-1">
-        <h1 className="text-3xl font-semibold text-primary">Embedding Providers</h1>
+        <h1 className="text-3xl font-semibold text-primary">Configuration</h1>
         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-          Manage credentials and models available for vectorization.
+          Manage API keys and embedding providers for CortexDB.
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="space-y-8">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold text-primary">Tokens</h2>
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+            Manage API tokens for authentication and authorization.
+          </p>
+        </div>
+        
+        <APIKeysSection />
+        
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold text-primary">Embedding Providers</h2>
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+            Manage credentials and models available for vectorization.
+          </p>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <Card>
           <CardHeader>
             <CardTitle>Add Provider</CardTitle>
@@ -247,6 +265,7 @@ export default function EmbeddingSettingsPage() {
             )}
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

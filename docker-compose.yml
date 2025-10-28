@@ -45,6 +45,7 @@ services:
   gateway:
     build: ./gateway
     environment:
+      CORTEXDB_ADMIN_KEY: ${CORTEXDB_ADMIN_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_EMBEDDING_MODEL: models/text-embedding-004
       GEMINI_VISION_MODEL: models/gemini-1.5-flash

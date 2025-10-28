@@ -1,8 +1,9 @@
 """CortexDB client."""
 
-from typing import Optional
+from typing import Optional, Union
 
 from .collections import CollectionsAPI
+from .connection_string import parse_connection_string
 from .http_client import HTTPClient
 from .records import RecordsAPI
 
@@ -15,21 +16,15 @@ class CortexClient:
         >>> from cortexdb import CortexClient
         >>>
         >>> async def main():
+        ...     # Using options
         ...     async with CortexClient("http://localhost:8000") as client:
-        ...         # List collections
         ...         collections = await client.collections.list()
         ...
-        ...         # Create a record
+        ...     # Using connection string
+        ...     async with CortexClient("cortexdb://my-key@localhost:8000") as client:
         ...         record = await client.records.create(
         ...             collection="documents",
         ...             data={"title": "Hello", "content": "World"}
-        ...         )
-        ...
-        ...         # Search
-        ...         results = await client.records.query(
-        ...             collection="documents",
-        ...             query="hello world",
-        ...             limit=10
         ...         )
         >>>
         >>> asyncio.run(main())
@@ -37,21 +32,39 @@ class CortexClient:
 
     def __init__(
         self,
-        base_url: str = "http://localhost:8000",
+        base_url: Union[str, None] = None,
         api_key: Optional[str] = None,
         timeout: float = 30.0,
     ):
         """Initialize CortexDB client.
 
         Args:
-            base_url: Base URL of CortexDB gateway (default: http://localhost:8000)
-            api_key: Optional API key for authentication
+            base_url: Base URL of CortexDB gateway or connection string.
+                      If starts with "cortexdb://", it's parsed as a connection string.
+                      Examples:
+                          - "http://localhost:8000" (regular URL)
+                          - "cortexdb://localhost:8000" (connection string)
+                          - "cortexdb://my-key@localhost:8000" (connection string with API key)
+            api_key: Optional API key for authentication (ignored if using connection string with key)
             timeout: Request timeout in seconds (default: 30.0)
 
         Example:
             >>> client = CortexClient("http://localhost:8000")
             >>> client = CortexClient("https://api.cortexdb.com", api_key="your-key")
+            >>> client = CortexClient("cortexdb://my-key@localhost:8000")
         """
+        # Handle connection string
+        if base_url and base_url.startswith("cortexdb://"):
+            parsed = parse_connection_string(base_url)
+            base_url = parsed.base_url
+            # Connection string api_key takes precedence
+            if parsed.api_key:
+                api_key = parsed.api_key
+        
+        # Default base_url if not provided
+        if not base_url:
+            base_url = "http://localhost:8000"
+        
         self._http = HTTPClient(base_url=base_url, api_key=api_key, timeout=timeout)
 
         # API modules

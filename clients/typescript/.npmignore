@@ -1,0 +1,33 @@
+# Source files
+src/
+*.ts
+!*.d.ts
+
+# Tests
+tests/
+test/
+*.test.ts
+*.spec.ts
+
+# Examples
+examples/
+
+# Config
+tsconfig.json
+.gitignore
+.npmignore
+TODO.md
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# IDE
+.vscode/
+.idea/
+
+# Misc
+*.log
+coverage/
+.DS_Store
+

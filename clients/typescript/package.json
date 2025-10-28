@@ -1,0 +1,61 @@
+{
+  "name": "@dooor-ai/cortexdb",
+  "version": "0.2.0",
+  "description": "Official TypeScript/JavaScript SDK for CortexDB - Multi-modal RAG Platform with advanced document processing",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "clean": "rm -rf dist",
+    "prepare": "npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cortexdb/cortexdb.git",
+    "directory": "clients/typescript"
+  },
+  "bugs": {
+    "url": "https://github.com/cortexdb/cortexdb/issues"
+  },
+  "homepage": "https://github.com/cortexdb/cortexdb#readme",
+  "keywords": [
+    "cortexdb",
+    "vector-database",
+    "rag",
+    "embeddings",
+    "semantic-search",
+    "document-processing",
+    "ai",
+    "ml",
+    "llm",
+    "docling",
+    "multimodal",
+    "typescript",
+    "sdk"
+  ],
+  "author": "CortexDB Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {}
+}

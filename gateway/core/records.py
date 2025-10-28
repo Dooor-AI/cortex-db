@@ -14,9 +14,9 @@ from ..utils.constants import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE
 from ..utils.logger import get_logger
 from .chunking import chunk_text
 from .collections import collection_requires_vectors, default_bucket_name, get_collection_service
+from .docling_processor import get_docling_processor
 from .embeddings import GeminiEmbeddingService, get_embedding_service
 from .minio import get_minio_service
-from .pdf_processor import get_pdf_processor
 from .postgres import get_postgres_client
 from .qdrant import QdrantPoint, get_qdrant_service
 
@@ -38,7 +38,7 @@ class RecordService:
         self._qdrant = get_qdrant_service()
         self._minio = get_minio_service()
         self._collections = get_collection_service()
-        self._pdf_processor = get_pdf_processor()
+        self._docling = get_docling_processor()
 
     async def create_record(
         self,
@@ -568,11 +568,22 @@ class RecordService:
 
         text_fragments: List[str] = []
         if field.vectorize:
-            if upload.content_type == "application/pdf":
-                extracted = await self._pdf_processor.extract_text(
-                    content,
-                    field.extract_config,
-                )
+            # Determine file type and process accordingly
+            is_document = upload.content_type in [
+                "application/pdf",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # DOCX
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # XLSX
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation",  # PPTX
+                "application/msword",  # DOC
+                "application/vnd.ms-excel",  # XLS
+                "application/vnd.ms-powerpoint",  # PPT
+                "text/html",
+            ]
+            
+            is_image = upload.content_type and upload.content_type.startswith("image/")
+            
+            if is_document:
+                # Use Docling for advanced document processing
                 # Use field config if available, otherwise use defaults
                 effective_chunk_size = chunk_size
                 effective_chunk_overlap = chunk_overlap
@@ -581,19 +592,35 @@ class RecordService:
                         effective_chunk_size = field.extract_config.chunk_size
                     if field.extract_config.chunk_overlap is not None:
                         effective_chunk_overlap = field.extract_config.chunk_overlap
-
-                text_fragments = chunk_text(
-                    extracted,
-                    effective_chunk_size,
-                    effective_chunk_overlap,
-                ) if extracted else []
-            elif upload.content_type and upload.content_type.startswith("image/"):
+                
+                # Create config for Docling
+                docling_config = ExtractConfig(
+                    extract_text=field.extract_config.extract_text if field.extract_config else True,
+                    ocr_if_needed=field.extract_config.ocr_if_needed if field.extract_config else True,
+                    chunk_size=effective_chunk_size,
+                    chunk_overlap=effective_chunk_overlap,
+                )
+                
+                # Extract text and semantic chunks using Docling
+                _, text_fragments = await self._docling.extract_text_and_chunks(
+                    content,
+                    upload.filename or "document",
+                    docling_config
+                )
+                
+            elif is_image:
+                # Use Gemini Vision for images
                 from .vision import get_vision_service
 
                 vision = get_vision_service()
-                description = await vision.extract_text(content, upload.content_type)
-                text_fragments = chunk_text(description, chunk_size, chunk_overlap) if description else []
+                if vision:
+                    description = await vision.extract_text(content, upload.content_type)
+                    text_fragments = chunk_text(description, chunk_size, chunk_overlap) if description else []
+                else:
+                    logger.warning("vision_service_not_available", extra={"filename": upload.filename})
+                    text_fragments = []
             else:
+                # Unknown file type - just store metadata
                 text_fragments = [f"File uploaded: {upload.filename}"]
 
         return object_path, text_fragments

@@ -32,13 +32,14 @@ fi
 echo "Select test to run:"
 echo "  1) Basic CRUD (test_basic.py)"
 echo "  2) File Upload/Download (test_files.py)"
-echo "  3) RAG - Semantic Search (test_rag.py) 🔥"
-echo "  4) Semantic Search (test_search.py)"
-echo "  5) Advanced Filters (test_filters.py)"
-echo "  6) Backend Example (backend_example.py)"
-echo "  7) Run all tests"
+echo "  3) Docling Document Processing (test_docling.py) 🆕"
+echo "  4) RAG - Semantic Search (test_rag.py) 🔥"
+echo "  5) Semantic Search (test_search.py)"
+echo "  6) Advanced Filters (test_filters.py)"
+echo "  7) Backend Example (backend_example.py)"
+echo "  8) Run all tests"
 echo ""
-read -p "Choice [1-7]: " choice
+read -p "Choice [1-8]: " choice
 
 case $choice in
     1)
@@ -50,29 +51,35 @@ case $choice in
         python3 playground/test_files.py
         ;;
     3)
+        echo -e "\n${BLUE}Running Docling Test...${NC}\n"
+        python3 playground/test_docling.py
+        ;;
+    4)
         echo -e "\n${BLUE}Running RAG Test...${NC}\n"
         python3 playground/test_rag.py
         ;;
-    4)
+    5)
         echo -e "\n${BLUE}Running Search Test...${NC}\n"
         python3 playground/test_search.py
         ;;
-    5)
+    6)
         echo -e "\n${BLUE}Running Filters Test...${NC}\n"
         python3 playground/test_filters.py
         ;;
-    6)
+    7)
         echo -e "\n${BLUE}Starting Backend Example...${NC}\n"
         if ! python3 -c "import fastapi" 2>/dev/null; then
             pip3 install fastapi uvicorn --quiet
         fi
         python3 playground/backend_example.py
         ;;
-    7)
+    8)
         echo -e "\n${BLUE}Running all tests...${NC}\n"
         python3 playground/test_basic.py
         echo ""
         python3 playground/test_files.py
+        echo ""
+        python3 playground/test_docling.py
         echo ""
         python3 playground/test_rag.py
         echo ""

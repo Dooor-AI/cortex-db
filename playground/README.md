@@ -31,6 +31,7 @@ python3 playground/test_basic.py        # Ou roda direto
 |--------|-----------|---------|
 | `test_basic.py` | CRUD básico de collections e records | ~5s |
 | `test_files.py` | Upload e download de arquivos | ~10s |
+| `test_docling.py` | **Docling** - processamento avançado de documentos | ~15s |
 | `test_rag.py` | **RAG completo** - busca semântica vetorial | ~20s |
 | `test_search.py` | Busca semântica com vectorização | ~15s |
 | `test_filters.py` | Filtros avançados ($gte, $lt, etc) | ~15s |

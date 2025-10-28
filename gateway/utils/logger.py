@@ -24,10 +24,15 @@ class JsonFormatter(logging.Formatter):
         if record.exc_info:
             log_entry["exc_info"] = self.formatException(record.exc_info)
 
+        # Fields to exclude to avoid conflicts
+        excluded_fields = {
+            "msg", "args", "levelname", "levelno", "name",
+            "message", "level", "time", "logger", "exc_info",
+            "exc_text", "stack_info"  # These are handled above
+        }
+        
         for key, value in record.__dict__.items():
-            if key.startswith("_") or key in log_entry:
-                continue
-            if key in {"msg", "args", "levelname", "levelno", "name"}:
+            if key.startswith("_") or key in log_entry or key in excluded_fields:
                 continue
             try:
                 json.dumps(value)

@@ -15,25 +15,9 @@ async def health_root():
     return {"status": "ok"}
 
 
-@router.get("/postgres")
-async def health_postgres():
-    postgres = get_postgres_client()
-    healthy = await postgres.healthcheck()
-    return {"status": "ok" if healthy else "error"}
-
-
-@router.get("/qdrant")
-async def health_qdrant():
-    qdrant = get_qdrant_service()
-    healthy = await qdrant.healthcheck()
-    return {"status": "ok" if healthy else "error"}
-
-
-@router.get("/minio")
-async def health_minio():
-    minio = get_minio_service()
-    healthy = await minio.healthcheck()
-    return {"status": "ok" if healthy else "error"}
+@router.get("/root")
+async def health_root_alias():
+    return await health_root()
 
 
 @router.get("/all")

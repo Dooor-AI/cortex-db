@@ -182,9 +182,10 @@ class QdrantService:
 
     async def healthcheck(self) -> bool:
         try:
-            await self._client.health()
+            await self._client.get_collections()
             return True
-        except Exception:
+        except Exception as exc:
+            logger.warning("qdrant_healthcheck_failed", extra={"error": str(exc)})
             return False
 
     async def search(
